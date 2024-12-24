@@ -94,16 +94,17 @@ sequenceDiagram
     Server->>Filesystem: Create new file
     Note over Filesystem: Using original filename
 
-    Note over Memory,Hash,Filesystem: Using io.MultiWriter
-    Memory->>Hash: Stream data for checksum
-    Memory->>Filesystem: Stream data for storage
-    Note over Memory,Hash,Filesystem: Concurrent operations
+    Note over Server: Using io.MultiWriter for concurrent operations
+    par Concurrent Operations
+        Memory->>Hash: Stream data for checksum
+        Memory->>Filesystem: Stream data for storage
+    end
 
     Hash->>Server: Return SHA-256 checksum
     Note over Server: Convert hash to hex string
 
     Server->>Client: Send success response with checksum
-    Note over Client: {status: "success",<br/>checksum: "185f8db3...",<br/>size: 1234}
+    Note over Client: {status: "success", checksum: "185f8db3...", size: 1234}
 ```
 
 ## Usage Examples
