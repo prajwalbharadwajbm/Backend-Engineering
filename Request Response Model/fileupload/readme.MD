@@ -73,11 +73,13 @@ graph LR
 ### Complete Request-Response Flow
 This diagram shows the complete flow of a file upload request from client to server.
 
+#### Whole File Upload Flow
 ```mermaid
 sequenceDiagram
     participant Client
     participant Server
     participant Memory
+    participant Hash
     participant Filesystem
 
     Client->>Server: POST /upload with file data
@@ -92,17 +94,17 @@ sequenceDiagram
     Server->>Filesystem: Create new file
     Note over Filesystem: Using original filename
 
-    Memory->>Filesystem: Copy file contents
-    Note over Memory,Filesystem: Stream data to avoid<br/>memory overload
+    Note over Memory,Hash,Filesystem: Using io.MultiWriter
+    Memory->>Hash: Stream data for checksum
+    Memory->>Filesystem: Stream data for storage
+    Note over Memory,Hash,Filesystem: Concurrent operations
 
-    Server->>Client: Send success response
+    Hash->>Server: Return SHA-256 checksum
+    Note over Server: Convert hash to hex string
+
+    Server->>Client: Send success response with checksum
+    Note over Client: {status: "success",<br/>checksum: "185f8db3...",<br/>size: 1234}
 ```
-
-The implementation ensures:
-- Memory efficiency through streaming
-- Data integrity verification via checksums
-- Concurrent file writing and hash calculation
-- Proper error handling and validation
 
 ## Usage Examples
 
