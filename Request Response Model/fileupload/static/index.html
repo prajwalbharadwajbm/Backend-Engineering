@@ -1,187 +1,473 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>File Upload</title>
+    <title>File Upload Service</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-active {
+            border-bottom: 2px solid #3B82F6;
+            color: #3B82F6;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-8">
     <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
         <h1 class="text-2xl font-bold mb-6 text-gray-800">File Upload</h1>
         
-        <!-- File Input Area -->
-        <div class="mb-6">
-            <div class="flex items-center justify-center w-full">
-                <label class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300">
-                    <div id="dropzone" class="flex flex-col items-center justify-center pt-7">
-                        <svg class="w-12 h-12 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                        <p id="fileNameDisplay" class="pt-1 text-sm tracking-wider text-gray-400 group-hover:text-gray-600">
-                            Select a file
-                        </p>
-                        <p id="fileSizeDisplay" class="text-xs text-gray-500 mt-1 hidden"></p>
-                    </div>
-                    <input type="file" id="fileInput" multiple class="opacity-0" onchange="handleFileSelect(event)" />
-                </label>
-            </div>
+        <!-- Tabs -->
+        <div class="flex border-b mb-6">
+            <button onclick="switchTab('chunked')" id="chunkedTab" 
+                    class="px-4 py-2 tab-active">
+                Chunked Upload
+            </button>
+            <button onclick="switchTab('single')" id="singleTab" 
+                    class="px-4 py-2">
+                Single Upload
+            </button>
         </div>
 
-        <!-- Upload Button -->
-        <button onclick="startUpload()" 
-                class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md 
-                       transition duration-300 ease-in-out transform hover:scale-105">
-            Start Upload
-        </button>
-
-        <!-- Progress Section -->
-        <div class="mt-8">
-            <div class="relative pt-1">
-                <div class="flex mb-2 items-center justify-between">
+        <!-- Add this before the upload sections -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">SSH Server Configuration</h2>
+                <button onclick="toggleServerConfig()" 
+                        class="text-sm text-blue-600 hover:text-blue-800">
+                    Configure SSH Server
+                </button>
+            </div>
+            
+            <div id="serverConfig" class="hidden">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <span id="status" class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                            Ready
-                        </span>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Host
+                        </label>
+                        <input type="text" id="sshHost" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="example.com or IP address">
                     </div>
-                    <div class="text-right">
-                        <span id="progressText" class="text-xs font-semibold inline-block text-blue-600">
-                            0%
-                        </span>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Port
+                        </label>
+                        <input type="number" id="sshPort" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="22" value="22">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Username
+                        </label>
+                        <input type="text" id="sshUsername" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Authentication Method
+                        </label>
+                        <select id="authMethod" 
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                onchange="toggleAuthMethod()">
+                            <option value="password">Password</option>
+                            <option value="key">SSH Key</option>
+                        </select>
+                    </div>
+                    <div id="passwordField">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Password
+                        </label>
+                        <input type="password" id="sshPassword" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Enter SSH password">
+                    </div>
+                    <div id="keyField" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Private Key File
+                        </label>
+                        <input type="file" id="sshKeyFile" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               accept=".pem,.key">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Remote Directory
+                        </label>
+                        <input type="text" id="remoteDir" 
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="/home/user/uploads">
                     </div>
                 </div>
-                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
-                    <div id="progressFill" 
-                         class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 
-                                transition-all duration-300 ease-in-out" 
-                         style="width: 0%">
-                    </div>
+                
+                <div class="flex justify-end mt-4 space-x-2">
+                    <button onclick="testSSHConnection()" 
+                            class="px-4 py-2 text-sm bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200">
+                        Test Connection
+                    </button>
+                    <button onclick="saveSSHConfig()" 
+                            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Save Configuration
+                    </button>
                 </div>
+            </div>
+            
+            <div id="serverStatus" class="mt-2">
+                <span class="text-sm text-gray-600">
+                    Current Server: <span id="currentServer">Not configured</span>
+                </span>
+                <span id="connectionStatus" class="ml-2 text-sm text-gray-600">
+                    ●
+                </span>
             </div>
         </div>
 
-        <!-- Upload Details -->
-        <div id="uploadDetails" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
-            <h3 class="text-lg font-semibold text-gray-700 mb-2">Upload Details</h3>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div class="text-gray-600">Chunks Uploaded:</div>
-                <div id="chunksStatus" class="text-gray-800 font-medium">0/0</div>
-                <div class="text-gray-600">Upload Speed:</div>
-                <div id="speedStatus" class="text-gray-800 font-medium">0 MB/s</div>
-                <div class="text-gray-600">Time Remaining:</div>
-                <div id="timeStatus" class="text-gray-800 font-medium">Calculating...</div>
+        <!-- Chunked Upload Section -->
+        <div id="chunkedUpload" class="upload-section">
+            <!-- File Input Area -->
+            <div class="mb-6">
+                <div class="flex items-center justify-center w-full">
+                    <label class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300">
+                        <div id="dropzone" class="flex flex-col items-center justify-center pt-7">
+                            <svg class="w-12 h-12 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p id="fileNameDisplay" class="pt-1 text-sm tracking-wider text-gray-400 group-hover:text-gray-600">
+                                Select a file
+                            </p>
+                            <p id="fileSizeDisplay" class="text-xs text-gray-500 mt-1 hidden"></p>
+                        </div>
+                        <input type="file" id="fileInput" multiple class="opacity-0" onchange="handleFileSelect(event)" />
+                    </label>
+                </div>
             </div>
+
+            <!-- Upload Button -->
+            <button onclick="startUpload()" 
+                    class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md 
+                           transition duration-300 ease-in-out transform hover:scale-105">
+                Start Upload
+            </button>
+
+            <!-- Progress Section -->
+            <div class="mt-8">
+                <div class="relative pt-1">
+                    <div class="flex mb-2 items-center justify-between">
+                        <div>
+                            <span id="status" class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                                Ready
+                            </span>
+                        </div>
+                        <div class="text-right">
+                            <span id="progressText" class="text-xs font-semibold inline-block text-blue-600">
+                                0%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                        <div id="progressFill" 
+                             class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 
+                                    transition-all duration-300 ease-in-out" 
+                             style="width: 0%">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Details -->
+            <div id="uploadDetails" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Upload Details</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="text-gray-600">Chunks Uploaded:</div>
+                    <div id="chunksStatus" class="text-gray-800 font-medium">0/0</div>
+                    <div class="text-gray-600">Upload Speed:</div>
+                    <div id="speedStatus" class="text-gray-800 font-medium">0 MB/s</div>
+                    <div class="text-gray-600">Time Remaining:</div>
+                    <div id="timeStatus" class="text-gray-800 font-medium">Calculating...</div>
+                </div>
+            </div>
+
+            <!-- Add a file list display -->
+            <div id="fileList" class="mt-4 space-y-2"></div>
         </div>
 
-        <!-- Add a file list display -->
-        <div id="fileList" class="mt-4 space-y-2"></div>
+        <!-- Single Upload Section -->
+        <div id="singleUpload" class="upload-section hidden">
+            <div class="mb-6">
+                <div class="flex items-center justify-center w-full">
+                    <label class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300">
+                        <div id="singleDropzone" class="flex flex-col items-center justify-center pt-7">
+                            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p id="singleFileDisplay" class="pt-1 text-sm tracking-wider text-gray-400">
+                                Select files
+                            </p>
+                        </div>
+                        <input type="file" id="singleFileInput" multiple class="opacity-0" onchange="handleSingleFileSelect(event)" />
+                    </label>
+                </div>
+            </div>
+
+            <div id="singleFileList" class="mt-4 space-y-2"></div>
+
+            <button onclick="startSingleUpload()" 
+                    class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md">
+                Upload Files
+            </button>
+        </div>
     </div>
 
     <script>
     // Track multiple uploads
     let uploads = new Map(); // Map to store upload status for each file
 
-    function handleFileSelect(event) {
-        const files = event.target.files;
-        const fileList = document.getElementById('fileList');
-        fileList.innerHTML = '';
+    async function processFileSelection(files, fileListId, fileNameDisplayId = null) {
+        const fileList = document.getElementById(fileListId);
+        const fileNameDisplay = fileNameDisplayId ? document.getElementById(fileNameDisplayId) : null;
 
-        Array.from(files).forEach((file, index) => {
-            const fileDiv = document.createElement('div');
-            fileDiv.className = 'p-4 bg-gray-50 rounded-lg flex items-center justify-between';
-            fileDiv.innerHTML = `
-                <div>
-                    <p class="font-medium text-gray-800">${file.name}</p>
-                    <p class="text-sm text-gray-500">${formatFileSize(file.size)}</p>
-                </div>
-                <div class="w-64">
-                    <div class="relative pt-1">
-                        <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-                            <div id="progress-${index}" 
-                                 class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
-                                 style="width: 0%">
+        // Clear previous files
+        fileList.innerHTML = '';
+        
+        if (!files || files.length === 0) {
+            return;
+        }
+
+        // Show loading state immediately
+        if (fileNameDisplay) {
+            fileNameDisplay.textContent = 'Processing files...';
+        }
+        showNotification('Processing files, please wait...', 'blue');
+
+        // Add loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'p-4 bg-gray-50 rounded-lg mb-4';
+        loadingDiv.innerHTML = `
+            <div class="flex items-center justify-center space-x-3">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                <span class="text-sm text-gray-600">Preparing files for upload...</span>
+            </div>
+        `;
+        fileList.appendChild(loadingDiv);
+
+        // Process files with small delay to allow UI update
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        try {
+            // Remove loading indicator
+            loadingDiv.remove();
+
+            // Process each file
+            Array.from(files).forEach((file, index) => {
+                // Check if file size is valid
+                if (!file.size) {
+                    showNotification(`Warning: ${file.name} appears to be empty or inaccessible`, 'red');
+                    return;
+                }
+
+                if (file.size > 100 * 1024 * 1024) { // 100MB
+                    showNotification(`Large file detected: ${file.name} (${formatFileSize(file.size)})`, 'blue');
+                }
+
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'p-4 bg-gray-50 rounded-lg mb-2';
+                fileDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium text-gray-800">${file.name}</p>
+                            <p class="text-sm text-gray-500">${formatFileSize(file.size)}</p>
+                        </div>
+                        <div class="w-64">
+                            <div class="relative pt-1">
+                                <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                                    <div id="progress-${fileListId}-${index}" 
+                                         class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
+                                         style="width: 0%">
+                                    </div>
+                                </div>
                             </div>
+                            <p id="status-${fileListId}-${index}" class="text-sm text-gray-600 mt-1">Ready to upload</p>
                         </div>
                     </div>
-                    <p id="status-${index}" class="text-sm text-gray-600 mt-1">Ready to upload</p>
+                `;
+                fileList.appendChild(fileDiv);
+            });
+
+            // Update file name display
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = files.length > 1 
+                    ? `${files.length} files selected` 
+                    : files[0].name;
+            }
+
+        } catch (error) {
+            console.error('Error processing files:', error);
+            showNotification('Error processing files', 'red');
+            fileList.innerHTML = `
+                <div class="p-4 bg-red-50 rounded-lg">
+                    <p class="text-red-600">Error processing files. Please try again.</p>
                 </div>
             `;
-            fileList.appendChild(fileDiv);
-        });
+        }
+    }
+
+    async function handleFileSelect(event) {
+        await processFileSelection(event.target.files, 'fileList', 'fileNameDisplay');
+    }
+
+    async function handleSingleFileSelect(event) {
+        await processFileSelection(event.target.files, 'singleFileList');
     }
 
     async function startUpload(replace = false) {
         const files = document.getElementById('fileInput').files;
-        if (!files.length) {
-            updateStatus('Please select files first', 'red');
+        if (!files || files.length === 0) {
+            showNotification('Please select files first', 'red');
             return;
         }
 
-        // Upload each file
+        // Show upload details section
+        const uploadDetails = document.getElementById('uploadDetails');
+        if (uploadDetails) {
+            uploadDetails.classList.remove('hidden');
+            document.getElementById('chunksStatus').textContent = '0/0';
+            document.getElementById('speedStatus').textContent = '0 MB/s';
+            document.getElementById('timeStatus').textContent = 'Starting...';
+        }
+
+        // Get SSH configuration
+        const sshConfig = {
+            host: document.getElementById('sshHost').value,
+            port: document.getElementById('sshPort').value,
+            username: document.getElementById('sshUsername').value,
+            password: document.getElementById('sshPassword').value,
+            remoteDir: document.getElementById('remoteDir').value,
+            authMethod: document.getElementById('authMethod').value
+        };
+
         Array.from(files).forEach(async (file, index) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('sshConfig', JSON.stringify(sshConfig));
+
+            const startTime = Date.now();
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let uploadedChunks = 0;
+
             try {
-                // Initialize upload
-                const initResponse = await fetch('/api/v1/upload/init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        filename: file.name,
-                        totalSize: file.size,
-                        chunkSize: 1024 * 1024,
-                        totalChunks: Math.ceil(file.size / (1024 * 1024)),
-                        replace: replace
-                    })
-                });
-                const response = await initResponse.json();
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/v1/ssh/upload', true);
 
-                if (response.status === 'exists') {
-                    if (confirm(`File ${response.filename} already exists. Do you want to replace it?`)) {
-                        startSingleUpload(file, index, true);
+                // Progress handler
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        uploadedChunks = Math.ceil(event.loaded / chunkSize);
+                        
+                        // Update progress bar
+                        updateFileProgress(index, percentComplete, 'fileList');
+                        
+                        // Update status with chunks
+                        document.getElementById('chunksStatus').textContent = 
+                            `${uploadedChunks}/${totalChunks} chunks`;
+                        
+                        const speed = event.loaded / ((Date.now() - startTime) / 1000) / (1024 * 1024);
+                        document.getElementById('speedStatus').textContent = 
+                            `${speed.toFixed(2)} MB/s`;
+                        
+                        const remainingTime = (file.size - event.loaded) / (speed * 1024 * 1024);
+                        document.getElementById('timeStatus').textContent = 
+                            remainingTime > 0 ? formatTimeRemaining(remainingTime) : 'Completing...';
                     }
-                    return;
-                }
+                };
 
-                uploads.set(file.name, {
-                    uploadId: response.uploadId,
-                    index: index
-                });
+                // Complete handler
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        updateFileStatus(index, 'Upload complete!', 'green', 'fileList');
+                        showNotification(`${file.name} uploaded successfully!`, 'green');
+                        
+                        // Update final status
+                        document.getElementById('chunksStatus').textContent = 
+                            `${formatFileSize(file.size)} / ${formatFileSize(file.size)}`;
+                        document.getElementById('speedStatus').textContent = 'Complete';
+                        document.getElementById('timeStatus').textContent = 'Done';
+                    } else {
+                        throw new Error(xhr.responseText);
+                    }
+                };
 
-                await startSingleUpload(file, index, false);
+                // Error handler
+                xhr.onerror = () => {
+                    throw new Error('Network error occurred');
+                };
+
+                // Send the form data
+                xhr.send(formData);
+
             } catch (error) {
-                console.error(`Upload failed for ${file.name}:`, error);
-                updateFileStatus(index, 'Upload failed: ' + error.message, 'red');
+                console.error('Upload failed:', error);
+                updateFileStatus(index, 'Upload failed: ' + error.message, 'red', 'fileList');
+                showNotification(`Failed to upload ${file.name}`, 'red');
             }
         });
     }
 
-    async function startSingleUpload(file, index, replace) {
-        const chunkSize = 1024 * 1024; // 1MB
+    function formatTimeRemaining(seconds) {
+        if (seconds < 60) {
+            return `${Math.ceil(seconds)}s remaining`;
+        } else if (seconds < 3600) {
+            return `${Math.ceil(seconds / 60)}m ${Math.ceil(seconds % 60)}s remaining`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.ceil((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m remaining`;
+        }
+    }
+
+    function updateUploadDetails(uploadInfo) {
+        const uploadDetails = document.getElementById('uploadDetails');
+        if (!uploadDetails || uploadDetails.classList.contains('hidden')) return;
+
+        const { uploadedChunks, totalChunks, startTime } = uploadInfo;
+        const elapsedTime = (Date.now() - startTime) / 1000; // in seconds
+        
+        // Update chunks status
+        document.getElementById('chunksStatus').textContent = `${uploadedChunks}/${totalChunks}`;
+
+        // Calculate and update speed
+        if (elapsedTime > 0 && uploadedChunks > 0) {
+            // Calculate speed in MB/s
+            const speed = (uploadedChunks * 1024 * 1024) / (elapsedTime * 1024 * 1024);
+            document.getElementById('speedStatus').textContent = `${speed.toFixed(2)} MB/s`;
+
+            // Estimate remaining time
+            if (uploadedChunks < totalChunks) {
+                const remainingChunks = totalChunks - uploadedChunks;
+                const timePerChunk = elapsedTime / uploadedChunks;
+                const remainingTime = remainingChunks * timePerChunk;
+                document.getElementById('timeStatus').textContent = formatTimeRemaining(remainingTime);
+            } else {
+                document.getElementById('timeStatus').textContent = 'Complete';
+            }
+        }
+    }
+
+    async function uploadChunked(file, index, uploadId) {
+        const chunkSize = 1024 * 1024; // 1MB chunks
         const totalChunks = Math.ceil(file.size / chunkSize);
+        const uploadInfo = uploads.get(file.name);
+        uploadInfo.uploadedChunks = 0; // Reset counter
         
         try {
-            // Initialize if replacing
-            let uploadId;
-            if (replace) {
-                const initResponse = await fetch('/api/v1/upload/init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        filename: file.name,
-                        totalSize: file.size,
-                        chunkSize: chunkSize,
-                        totalChunks: totalChunks,
-                        replace: true
-                    })
-                });
-                const response = await initResponse.json();
-                uploadId = response.uploadId;
-            } else {
-                uploadId = uploads.get(file.name).uploadId;
-            }
-
-            // Upload chunks
-            for (let i = 0; i < totalChunks; i += 3) { // Upload 3 chunks at a time
+            // Upload chunks in parallel (3 at a time)
+            for (let i = 0; i < totalChunks; i += 3) {
                 const chunkPromises = [];
+                const remainingChunks = totalChunks - i;
+                const chunksToUpload = Math.min(3, remainingChunks); // Don't exceed total chunks
                 
-                for (let j = 0; j < 3 && i + j < totalChunks; j++) {
+                for (let j = 0; j < chunksToUpload; j++) {
                     const start = (i + j) * chunkSize;
                     const end = Math.min(start + chunkSize, file.size);
                     const chunk = file.slice(start, end);
@@ -190,33 +476,54 @@
                 }
                 
                 await Promise.all(chunkPromises);
-                updateFileProgress(index, (i + 3) / totalChunks * 100);
+                uploadInfo.uploadedChunks = Math.min(i + chunksToUpload, totalChunks); // Ensure we don't exceed total
+                updateFileProgress(index, (uploadInfo.uploadedChunks / totalChunks) * 100, 'fileList');
+                updateUploadDetails(uploadInfo);
             }
 
-            updateFileStatus(index, 'Upload complete!', 'green');
+            // Final update
+            uploadInfo.uploadedChunks = totalChunks;
+            updateUploadDetails(uploadInfo);
+            
+            // Update both status and progress bar color to green
+            updateFileStatus(index, 'Upload complete!', 'green', 'fileList');
+            const progressBar = document.getElementById(`progress-fileList-${index}`);
+            if (progressBar) {
+                progressBar.classList.remove('bg-blue-500');
+                progressBar.classList.add('bg-green-500');
+            }
         } catch (error) {
-            updateFileStatus(index, 'Upload failed: ' + error.message, 'red');
+            updateFileStatus(index, 'Upload failed: ' + error.message, 'red', 'fileList');
             throw error;
         }
     }
 
-    function updateFileProgress(index, percent) {
-        const progressBar = document.getElementById(`progress-${index}`);
+    function updateFileProgress(index, percent, listId) {
+        const progressBar = document.getElementById(`progress-${listId}-${index}`);
         if (progressBar) {
             progressBar.style.width = `${Math.min(100, percent)}%`;
         }
     }
 
-    function updateFileStatus(index, message, color = 'blue') {
-        const status = document.getElementById(`status-${index}`);
-        if (status) {
-            status.textContent = message;
-            status.className = `text-sm text-${color}-600 mt-1`;
+    function updateFileStatus(index, message, color, listId) {
+        const statusElement = document.getElementById(`status-${listId}-${index}`);
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `text-sm text-${color}-600 mt-1`;
+        }
+        
+        // Update progress bar color if complete
+        if (message === 'Upload complete!') {
+            const progressBar = document.getElementById(`progress-${listId}-${index}`);
+            if (progressBar) {
+                progressBar.classList.remove('bg-blue-500');
+                progressBar.classList.add('bg-green-500');
+            }
         }
     }
 
     function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -245,16 +552,11 @@
             const status = await response.json();
 
             if (status.status === "completed") {
-                updateFileStatus(index, 'Upload complete! File available at: ' + status.filePath, 'green');
+                updateFileStatus(index, 'Upload complete!', 'green');
                 return true;
             }
 
             updateFileProgress(index, (status.receivedChunks / status.totalChunks) * 100);
-            
-            if (status.isComplete) {
-                updateFileStatus(index, 'Processing chunks...', 'blue');
-            }
-
             return status.isComplete;
         } catch (error) {
             console.error('Status check failed:', error);
@@ -263,6 +565,271 @@
                 return true;
             }
             return false;
+        }
+    }
+
+    function switchTab(tab) {
+        const chunkedSection = document.getElementById('chunkedUpload');
+        const singleSection = document.getElementById('singleUpload');
+        const chunkedTab = document.getElementById('chunkedTab');
+        const singleTab = document.getElementById('singleTab');
+
+        if (tab === 'chunked') {
+            chunkedSection.classList.remove('hidden');
+            singleSection.classList.add('hidden');
+            chunkedTab.classList.add('tab-active');
+            singleTab.classList.remove('tab-active');
+        } else {
+            chunkedSection.classList.add('hidden');
+            singleSection.classList.remove('hidden');
+            chunkedTab.classList.remove('tab-active');
+            singleTab.classList.add('tab-active');
+        }
+    }
+
+    async function startSingleUpload() {
+        const files = document.getElementById('singleFileInput').files;
+        if (!files.length) {
+            showNotification('Please select files first', 'red');
+            return;
+        }
+
+        // Get SSH configuration
+        const sshConfig = {
+            host: document.getElementById('sshHost').value,
+            port: document.getElementById('sshPort').value,
+            username: document.getElementById('sshUsername').value,
+            password: document.getElementById('sshPassword').value,
+            remoteDir: document.getElementById('remoteDir').value,
+            authMethod: document.getElementById('authMethod').value
+        };
+
+        Array.from(files).forEach(async (file, index) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('sshConfig', JSON.stringify(sshConfig));
+
+            const startTime = Date.now();
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let uploadedChunks = 0;
+
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/v1/ssh/upload', true);
+
+                // Progress handler
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        uploadedSize = event.loaded;
+                        
+                        // Update progress bar
+                        const progressBar = document.getElementById(`progress-singleFileList-${index}`);
+                        if (progressBar) {
+                            progressBar.style.width = percentComplete + '%';
+                        }
+                        
+                        // Update status
+                        const statusElement = document.getElementById(`status-singleFileList-${index}`);
+                        if (statusElement) {
+                            statusElement.textContent = `Uploading: ${Math.round(percentComplete)}%`;
+                        }
+
+                        // Calculate speed and time remaining
+                        const elapsedTime = (Date.now() - startTime) / 1000;
+                        const speed = uploadedSize / (1024 * 1024 * elapsedTime); // MB/s
+                        const remainingTime = (file.size - uploadedSize) / (speed * 1024 * 1024);
+                        
+                        // Update upload details if they exist
+                        const uploadDetails = document.getElementById('uploadDetails');
+                        if (uploadDetails && !uploadDetails.classList.contains('hidden')) {
+                            document.getElementById('chunksStatus').textContent = 
+                                `${Math.round(percentComplete)}%`;
+                            document.getElementById('speedStatus').textContent = 
+                                `${speed.toFixed(2)} MB/s`;
+                            document.getElementById('timeStatus').textContent = 
+                                remainingTime > 0 ? formatTimeRemaining(remainingTime) : 'Completing...';
+                        }
+                    }
+                };
+
+                // Complete handler
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        const progressBar = document.getElementById(`progress-singleFileList-${index}`);
+                        const statusElement = document.getElementById(`status-singleFileList-${index}`);
+                        
+                        if (progressBar) {
+                            progressBar.classList.remove('bg-blue-500');
+                            progressBar.classList.add('bg-green-500');
+                        }
+                        
+                        if (statusElement) {
+                            statusElement.textContent = 'Upload complete!';
+                            statusElement.className = 'text-sm text-green-600 mt-1';
+                        }
+                        
+                        showNotification(`${file.name} uploaded successfully!`, 'green');
+                    } else {
+                        throw new Error(xhr.responseText);
+                    }
+                };
+
+                // Error handler
+                xhr.onerror = () => {
+                    const statusElement = document.getElementById(`status-singleFileList-${index}`);
+                    if (statusElement) {
+                        statusElement.textContent = 'Upload failed: Network error';
+                        statusElement.className = 'text-sm text-red-600 mt-1';
+                    }
+                    throw new Error('Network error occurred');
+                };
+
+                // Send the form data
+                xhr.send(formData);
+
+            } catch (error) {
+                console.error('Upload failed:', error);
+                const statusElement = document.getElementById(`status-singleFileList-${index}`);
+                if (statusElement) {
+                    statusElement.textContent = 'Upload failed: ' + error.message;
+                    statusElement.className = 'text-sm text-red-600 mt-1';
+                }
+                showNotification(`Failed to upload ${file.name}`, 'red');
+            }
+        });
+    }
+
+    // Add this notification system
+    function showNotification(message, type = 'blue') {
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white 
+                                transform transition-all duration-300 translate-y-0 opacity-100
+                                ${type === 'red' ? 'bg-red-500' : type === 'green' ? 'bg-green-500' : 'bg-blue-500'}`;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Fade out and remove
+        setTimeout(() => {
+            notification.classList.add('translate-y-2', 'opacity-0');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    let sshConfig = {
+        host: '',
+        port: '22',
+        username: '',
+        authMethod: 'password',
+        password: '',
+        keyFile: null,
+        remoteDir: ''
+    };
+
+    function toggleAuthMethod() {
+        const authMethod = document.getElementById('authMethod').value;
+        const passwordField = document.getElementById('passwordField');
+        const keyField = document.getElementById('keyField');
+        
+        if (authMethod === 'password') {
+            passwordField.classList.remove('hidden');
+            keyField.classList.add('hidden');
+        } else {
+            passwordField.classList.add('hidden');
+            keyField.classList.remove('hidden');
+        }
+    }
+
+    async function testSSHConnection() {
+        const statusDot = document.getElementById('connectionStatus');
+        const config = getSSHConfig();
+        
+        try {
+            statusDot.className = 'ml-2 text-sm text-yellow-500';
+            statusDot.textContent = '● Testing...';
+            
+            const response = await fetch('/api/v1/ssh/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                statusDot.className = 'ml-2 text-sm text-green-500';
+                statusDot.textContent = '● Connected';
+                showNotification('SSH connection successful!', 'green');
+            } else {
+                throw new Error(await response.text());
+            }
+        } catch (error) {
+            console.error('SSH connection test failed:', error);
+            statusDot.className = 'ml-2 text-sm text-red-500';
+            statusDot.textContent = '● Failed';
+            showNotification('Connection failed: ' + error.message, 'red');
+        }
+    }
+
+    function getSSHConfig() {
+        return {
+            host: document.getElementById('sshHost').value,
+            port: document.getElementById('sshPort').value,
+            username: document.getElementById('sshUsername').value,
+            authMethod: document.getElementById('authMethod').value,
+            password: document.getElementById('sshPassword').value,
+            remoteDir: document.getElementById('remoteDir').value
+        };
+    }
+
+    function saveSSHConfig() {
+        const config = getSSHConfig();
+        
+        // Basic validation
+        if (!config.host || !config.username || !config.remoteDir) {
+            showNotification('Please fill in all required fields', 'red');
+            return;
+        }
+
+        if (config.authMethod === 'password' && !config.password) {
+            showNotification('Please enter a password', 'red');
+            return;
+        }
+
+        // Save configuration (excluding password for security)
+        const safeConfig = { ...config, password: undefined };
+        localStorage.setItem('sshConfig', JSON.stringify(safeConfig));
+        
+        // Update display
+        document.getElementById('currentServer').textContent = 
+            `${config.username}@${config.host}:${config.port}`;
+        document.getElementById('serverConfig').classList.add('hidden');
+        showNotification('SSH configuration saved', 'green');
+    }
+
+    // Load saved configuration on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedConfig = localStorage.getItem('sshConfig');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            document.getElementById('sshHost').value = config.host;
+            document.getElementById('sshPort').value = config.port;
+            document.getElementById('sshUsername').value = config.username;
+            document.getElementById('authMethod').value = config.authMethod;
+            document.getElementById('remoteDir').value = config.remoteDir;
+            toggleAuthMethod();
+            
+            document.getElementById('currentServer').textContent = 
+                `${config.username}@${config.host}:${config.port}`;
+        }
+    });
+
+    function toggleServerConfig() {
+        const configDiv = document.getElementById('serverConfig');
+        if (configDiv) {
+            configDiv.classList.toggle('hidden');
         }
     }
     </script>

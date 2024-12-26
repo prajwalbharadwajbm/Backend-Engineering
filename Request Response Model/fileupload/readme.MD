@@ -2,7 +2,7 @@
 
 This service demonstrates two approaches to handle file uploads:
 1. Single Request Upload\wholeFile Request at Once
-2. Chunked Resumable Upload
+2. Chunked Resumable Upload: With Multiple Uploads
 
 ## Architecture Overview
 
@@ -172,31 +172,28 @@ This two-level locking system allows:
 - Thread-safe operations on both global and individual upload data
 - Better performance through finer-grained locking
 
-## Usage Examples
-
-### Single Request Upload
-```bash
-curl -X POST \
-http://localhost:8080/api/v1/upload \
--F "file=@/path/to/image.jpg"
-```
+## API Endpoints
 
 ### Chunked Upload
-1. Initialize upload:
 ```bash
-curl -X POST \
-http://localhost:8080/api/v1/upload/init \
--H "Content-Type: application/json" \
--d '{"filename":"image.jpg", "fileSize":1024000}'
+# Initialize upload
+POST /api/v1/upload/init
+Content-Type: application/json
+
+# Upload chunk
+POST /api/v1/upload/chunk/{uploadId}?chunkNum={number}
+Content-Type: multipart/form-data
+
+# Check status
+GET /api/v1/upload/status?uploadId={uploadId}
 ```
 
-2. Upload chunks:
+### Single File Upload
 ```bash
-curl -X POST \
-http://localhost:8080/api/v1/upload/chunk/{uploadId} \
--F "chunk=@/path/to/chunk" \
--F "chunkNumber=1"
+POST /api/v1/upload
+Content-Type: multipart/form-data
 ```
+
 ## Setup and Running
 
 1. Clone the repository
@@ -209,5 +206,39 @@ go mod tidy
 ```bash
 go run main.go
 ```
+4. Access the application
 
-The server will start on `localhost:8080`
+## Learning Outcomes
+
+### Technical Skills Gained
+1. **Concurrent Programming in Go**
+   - Mutex implementation
+   - Goroutine management
+   - Thread-safe operations
+
+2. **File Handling**
+   - Chunked file operations
+   - Efficient memory usage
+   - Cleanup procedures
+
+3. **Modern Web Development**
+   - Real-time progress updates
+   - Concurrent uploads
+   - Error handling
+
+
+### Challenges Overcome
+1. Race conditions in concurrent uploads
+2. Memory management with large files
+3. Proper cleanup of temporary files
+4. UI/UX for multiple file uploads
+
+## Future Improvements
+- [ ] Drag and drop support
+- [ ] Upload queue management
+- [ ] Pause/Resume functionality
+- [ ] Bandwidth throttling
+- [ ] Upload speed analytics
+
+## Contributing
+Feel free to submit issues and enhancement requests!

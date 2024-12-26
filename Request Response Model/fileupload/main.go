@@ -22,6 +22,10 @@ func main() {
 	http.HandleFunc("/api/v1/upload/chunk", upload.HandleChunkedUpload)
 	http.HandleFunc("/api/v1/upload/status", upload.HandleUploadStatus)
 
+	// Add SSH upload endpoint
+	http.HandleFunc("/api/v1/ssh/upload", upload.HandleSSHUpload)
+	http.HandleFunc("/api/v1/ssh/test", upload.HandleSSHTest)
+
 	fmt.Println("Server starting on http://localhost:8080")
 	fmt.Println("- Single file upload: POST /api/v1/upload")
 	fmt.Println("- Chunked upload: POST /api/v1/upload/init")
