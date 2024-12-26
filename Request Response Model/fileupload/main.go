@@ -5,31 +5,43 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
-	setupServer()
+	setupDirectories()
 
+	// Serve static files
+	http.Handle("/", http.FileServer(http.Dir("static")))
+
+	// Single file upload route
 	http.HandleFunc("/api/v1/upload", upload.HandleSingleUpload)
+
+	// Chunked upload routes
+	http.HandleFunc("/api/v1/upload/init", upload.HandleInitiateUpload)
+	http.HandleFunc("/api/v1/upload/chunk", upload.HandleChunkedUpload)
+	http.HandleFunc("/api/v1/upload/status", upload.HandleUploadStatus)
+
+	fmt.Println("Server starting on http://localhost:8080")
+	fmt.Println("- Single file upload: POST /api/v1/upload")
+	fmt.Println("- Chunked upload: POST /api/v1/upload/init")
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func setupServer() {
-	fmt.Println("Initializing File Upload Server...")
+func setupDirectories() {
+	dirs := []string{
+		"uploads",
+		"uploads/temp",
+		"uploads/final",
+		"static",
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
-
-		if r.Method == "OPTIONS" {
-			return
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Fatal(err)
 		}
-
-		// Handle 404 for undefined routes
-		http.NotFound(w, r)
-	})
+	}
 }

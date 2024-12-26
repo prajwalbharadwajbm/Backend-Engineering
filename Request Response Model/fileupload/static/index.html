@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800">File Upload</h1>
+        
+        <!-- File Input Area -->
+        <div class="mb-6">
+            <div class="flex items-center justify-center w-full">
+                <label class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-gray-300">
+                    <div id="dropzone" class="flex flex-col items-center justify-center pt-7">
+                        <svg class="w-12 h-12 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p id="fileNameDisplay" class="pt-1 text-sm tracking-wider text-gray-400 group-hover:text-gray-600">
+                            Select a file
+                        </p>
+                        <p id="fileSizeDisplay" class="text-xs text-gray-500 mt-1 hidden"></p>
+                    </div>
+                    <input type="file" id="fileInput" multiple class="opacity-0" onchange="handleFileSelect(event)" />
+                </label>
+            </div>
+        </div>
+
+        <!-- Upload Button -->
+        <button onclick="startUpload()" 
+                class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md 
+                       transition duration-300 ease-in-out transform hover:scale-105">
+            Start Upload
+        </button>
+
+        <!-- Progress Section -->
+        <div class="mt-8">
+            <div class="relative pt-1">
+                <div class="flex mb-2 items-center justify-between">
+                    <div>
+                        <span id="status" class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                            Ready
+                        </span>
+                    </div>
+                    <div class="text-right">
+                        <span id="progressText" class="text-xs font-semibold inline-block text-blue-600">
+                            0%
+                        </span>
+                    </div>
+                </div>
+                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                    <div id="progressFill" 
+                         class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 
+                                transition-all duration-300 ease-in-out" 
+                         style="width: 0%">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Details -->
+        <div id="uploadDetails" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Upload Details</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="text-gray-600">Chunks Uploaded:</div>
+                <div id="chunksStatus" class="text-gray-800 font-medium">0/0</div>
+                <div class="text-gray-600">Upload Speed:</div>
+                <div id="speedStatus" class="text-gray-800 font-medium">0 MB/s</div>
+                <div class="text-gray-600">Time Remaining:</div>
+                <div id="timeStatus" class="text-gray-800 font-medium">Calculating...</div>
+            </div>
+        </div>
+
+        <!-- Add a file list display -->
+        <div id="fileList" class="mt-4 space-y-2"></div>
+    </div>
+
+    <script>
+    // Track multiple uploads
+    let uploads = new Map(); // Map to store upload status for each file
+
+    function handleFileSelect(event) {
+        const files = event.target.files;
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = '';
+
+        Array.from(files).forEach((file, index) => {
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'p-4 bg-gray-50 rounded-lg flex items-center justify-between';
+            fileDiv.innerHTML = `
+                <div>
+                    <p class="font-medium text-gray-800">${file.name}</p>
+                    <p class="text-sm text-gray-500">${formatFileSize(file.size)}</p>
+                </div>
+                <div class="w-64">
+                    <div class="relative pt-1">
+                        <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                            <div id="progress-${index}" 
+                                 class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
+                                 style="width: 0%">
+                            </div>
+                        </div>
+                    </div>
+                    <p id="status-${index}" class="text-sm text-gray-600 mt-1">Ready to upload</p>
+                </div>
+            `;
+            fileList.appendChild(fileDiv);
+        });
+    }
+
+    async function startUpload(replace = false) {
+        const files = document.getElementById('fileInput').files;
+        if (!files.length) {
+            updateStatus('Please select files first', 'red');
+            return;
+        }
+
+        // Upload each file
+        Array.from(files).forEach(async (file, index) => {
+            try {
+                // Initialize upload
+                const initResponse = await fetch('/api/v1/upload/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        totalSize: file.size,
+                        chunkSize: 1024 * 1024,
+                        totalChunks: Math.ceil(file.size / (1024 * 1024)),
+                        replace: replace
+                    })
+                });
+                const response = await initResponse.json();
+
+                if (response.status === 'exists') {
+                    if (confirm(`File ${response.filename} already exists. Do you want to replace it?`)) {
+                        startSingleUpload(file, index, true);
+                    }
+                    return;
+                }
+
+                uploads.set(file.name, {
+                    uploadId: response.uploadId,
+                    index: index
+                });
+
+                await startSingleUpload(file, index, false);
+            } catch (error) {
+                console.error(`Upload failed for ${file.name}:`, error);
+                updateFileStatus(index, 'Upload failed: ' + error.message, 'red');
+            }
+        });
+    }
+
+    async function startSingleUpload(file, index, replace) {
+        const chunkSize = 1024 * 1024; // 1MB
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        
+        try {
+            // Initialize if replacing
+            let uploadId;
+            if (replace) {
+                const initResponse = await fetch('/api/v1/upload/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        totalSize: file.size,
+                        chunkSize: chunkSize,
+                        totalChunks: totalChunks,
+                        replace: true
+                    })
+                });
+                const response = await initResponse.json();
+                uploadId = response.uploadId;
+            } else {
+                uploadId = uploads.get(file.name).uploadId;
+            }
+
+            // Upload chunks
+            for (let i = 0; i < totalChunks; i += 3) { // Upload 3 chunks at a time
+                const chunkPromises = [];
+                
+                for (let j = 0; j < 3 && i + j < totalChunks; j++) {
+                    const start = (i + j) * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
+                    
+                    chunkPromises.push(uploadChunk(chunk, i + j, uploadId));
+                }
+                
+                await Promise.all(chunkPromises);
+                updateFileProgress(index, (i + 3) / totalChunks * 100);
+            }
+
+            updateFileStatus(index, 'Upload complete!', 'green');
+        } catch (error) {
+            updateFileStatus(index, 'Upload failed: ' + error.message, 'red');
+            throw error;
+        }
+    }
+
+    function updateFileProgress(index, percent) {
+        const progressBar = document.getElementById(`progress-${index}`);
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(100, percent)}%`;
+        }
+    }
+
+    function updateFileStatus(index, message, color = 'blue') {
+        const status = document.getElementById(`status-${index}`);
+        if (status) {
+            status.textContent = message;
+            status.className = `text-sm text-${color}-600 mt-1`;
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    async function uploadChunk(chunk, chunkNum, uploadId) {
+        const formData = new FormData();
+        formData.append('chunk', chunk);
+
+        const response = await fetch(`/api/v1/upload/chunk?uploadId=${uploadId}&chunkNum=${chunkNum}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Chunk ${chunkNum} failed: ${response.statusText}`);
+        }
+
+        return response;
+    }
+
+    async function checkUploadStatus(uploadId, index) {
+        try {
+            const response = await fetch(`/api/v1/upload/status?uploadId=${uploadId}`);
+            const status = await response.json();
+
+            if (status.status === "completed") {
+                updateFileStatus(index, 'Upload complete! File available at: ' + status.filePath, 'green');
+                return true;
+            }
+
+            updateFileProgress(index, (status.receivedChunks / status.totalChunks) * 100);
+            
+            if (status.isComplete) {
+                updateFileStatus(index, 'Processing chunks...', 'blue');
+            }
+
+            return status.isComplete;
+        } catch (error) {
+            console.error('Status check failed:', error);
+            if (error.status === 404) {
+                updateFileStatus(index, 'Upload not found', 'red');
+                return true;
+            }
+            return false;
+        }
+    }
+    </script>
+</body>
+</html> 

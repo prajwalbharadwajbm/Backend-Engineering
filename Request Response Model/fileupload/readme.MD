@@ -107,6 +107,71 @@ sequenceDiagram
     Note over Client: {status: "success", checksum: "185f8db3...", size: 1234}
 ```
 
+#### Chunked File Upload Flow
+First, I thought of working with sequntial flow, but then i considered to go with parall chunk uploads, which makes the process faster and efficient.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant TempStorage
+    participant FinalStorage
+
+    %% Initialization Phase
+    Client->>Server: Initialize Upload Request
+    Server->>Client: Return uploadId: "abc123"
+
+    %% Parallel Chunk Upload Phase
+    rect rgb(200, 230, 200)
+        Note over Client,Server: Parallel Chunk Uploads
+        par Chunk 1
+            Client->>Server: Upload Chunk 1 (0-1MB)
+            Server->>TempStorage: Save chunk_1
+            Server->>Client: Chunk 1 OK ✓
+        and Chunk 2
+            Client->>Server: Upload Chunk 2 (1-2MB)
+            Server->>TempStorage: Save chunk_2
+            Server->>Client: Chunk 2 OK ✓
+        and Chunk 3
+            Client->>Server: Upload Chunk 3 (2-3MB)
+            Server->>TempStorage: Save chunk_3
+            Server->>Client: Chunk 3 OK ✓
+        end
+    end
+
+    %% Status Check (can happen anytime)
+    Client->>Server: Check Upload Status
+    Server->>Client: Progress: {received: [1,2,3], missing: [4,5]}
+
+    %% Merge Phase
+    rect rgb(200, 200, 230)
+        Note over Server,FinalStorage: After all chunks received
+        Server->>TempStorage: Read all chunks
+        Server->>FinalStorage: Merge into final file
+    end
+```
+
+### Mutex Architecture
+The implementation uses two levels of mutex locks for thread-safe operations:
+
+```mermaid
+graph TD
+    A[Request 1] -->|Needs uploadsMutex| B[activeUploads Map]
+    C[Request 2] -->|Needs uploadsMutex| B
+    B -->|Get Upload| D[Upload 1]
+    B -->|Get Upload| E[Upload 2]
+    D -->|Needs upload.mutex| F[Upload 1 Data]
+    E -->|Needs upload.mutex| G[Upload 2 Data]
+```
+
+1. **Global uploadsMutex**: Protects the shared map of all active uploads
+2. **Per-Upload mutex**: Protects individual upload data
+
+This two-level locking system allows:
+- Multiple uploads to proceed in parallel
+- Thread-safe operations on both global and individual upload data
+- Better performance through finer-grained locking
+
 ## Usage Examples
 
 ### Single Request Upload
