@@ -145,8 +145,6 @@ func UploadFileViaSSH(config SSHConfig, localFilePath string, originalFilename s
 		fmt.Printf("\rUploading... %.2f%%", progress)
 	}
 
-	fmt.Println("\nUpload complete!")
-
 	// Verify file size
 	remoteFileInfo, err := sftpClient.Stat(remoteFilePath)
 	if err != nil {

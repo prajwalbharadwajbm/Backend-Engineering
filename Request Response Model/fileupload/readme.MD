@@ -239,6 +239,7 @@ go run main.go
 - [ ] Pause/Resume functionality
 - [ ] Bandwidth throttling
 - [ ] Upload speed analytics
+- [ ] Merge parallely in background for chunked upload 
 
 ## Contributing
 Feel free to submit issues and enhancement requests!
