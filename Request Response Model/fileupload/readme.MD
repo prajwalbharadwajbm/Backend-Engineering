@@ -9,12 +9,10 @@ This service demonstrates two approaches to handle file uploads:
 ### Single Request Upload
 - Simple HTTP POST request with multipart/form-data
 - Suitable for smaller files
-- No resume capability
 - Memory efficient as it streams to disk
 
 ### Chunked Resumable Upload
 - Splits large files into smaller chunks
-- Supports pause/resume functionality
 - Better for large files and unstable connections
 - Maintains upload state
 
