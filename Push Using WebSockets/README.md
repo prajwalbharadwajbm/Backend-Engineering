@@ -5,11 +5,9 @@ A simple real-time chat application built with Go and WebSockets. This project d
 ## Table of Contents
 - [Overview](#overview)
 - [How It Works](#how-it-works)
-- [Architecture](#architecture)
 - [Features](#features)
 - [Getting Started](#getting-started)
 - [Technical Details](#technical-details)
-- [Future Improvements](#future-improvements)
 
 ## Overview
 
