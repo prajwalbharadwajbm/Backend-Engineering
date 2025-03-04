@@ -53,8 +53,9 @@ sequenceDiagram
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/prajwalbharadwajbm/Push-Using-WebSockets.git
-cd Push-Using-WebSockets
+git clone https://github.com/prajwalbharadwajbm/Backend-Engineering.git
+cd Backend-Engineering
+cd Push Using WebSockets
 ```
 
 2. Install dependencies:
