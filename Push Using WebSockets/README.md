@@ -45,26 +45,6 @@ sequenceDiagram
     Server->>Client3: Broadcast Message
 ```
 
-## Architecture
-
-```mermaid
-graph TD
-    A[Client Browser] -->|WebSocket Connection| B[Go Server]
-    C[Client Browser] -->|WebSocket Connection| B
-    D[Client Browser] -->|WebSocket Connection| B
-    
-    B -->|Broadcast| A
-    B -->|Broadcast| C
-    B -->|Broadcast| D
-    
-    subgraph Server Components
-        B -->|Handle Connections| E[Connection Handler]
-        B -->|Process Messages| F[Message Handler]
-        E -->|Store Clients| G[Client Map]
-        F -->|Broadcast| G
-    end
-```
-
 ## Getting Started
 
 ### Prerequisites
